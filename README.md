@@ -1,240 +1,89 @@
-# CST435 Assignment 2: Parallel Image Processing System
+# Parallel Image Processing Pipeline on GCP
+### CST435: Parallel and Cloud Computing - Assignment 2
 
-**Course:** CST435 - Parallel and Cloud Computing  
-**University:** Universiti Sains Malaysia (USM)  
-**Session:** 2025/2026  
+This project implements a high-performance image processing pipeline designed to benchmark and analyze parallel computing paradigms in Python. The system processes images from the Food-101 dataset by applying a chain of computationally intensive filters (Grayscale, Gaussian Blur, Sobel Edge Detection, Sharpening, and Brightness Adjustment).
 
-## Project Overview
+To evaluate performance scalability, the pipeline is implemented using three different execution strategies:
+1.  **Sequential Execution** (Baseline)
+2.  **Multiprocessing** (using `multiprocessing.Pool`)
+3.  **Concurrent Futures** (using `ProcessPoolExecutor` and `ThreadPoolExecutor`)
 
-This project implements a high-performance parallel image processing pipeline designed to deploy and execute on the Google Cloud Platform (GCP). The system applies a series of computational filters to the **Food-101** dataset.
-
-The primary objective is to analyze the performance characteristics (speedup, efficiency, and scalability) of different parallel programming paradigms in Python compared to a sequential baseline.
-
-## Group Members
-
-| No. | Name | Matric No. |
-| :--- | :--- | :--- |
-| 1 | [Enter Name Here] | [Enter Matric] |
-| 2 | [Enter Name Here] | [Enter Matric] |
-| 3 | [Enter Name Here] | [Enter Matric] |
-| 4 | [Enter Name Here] | [Enter Matric] |
+## 👥 Group Members
+* **[MUHAMMAD HAZIQ BIN SAZALI]** - [163646]
+* **[MUHAMMAD ARFAN BIN ZUHAIME]** - [161508]
+* **[MUHAMMAD HAZIQ BIN MOHAMAD RODZALI]** - [161423]
+* **[TAI JIA HUI]** - [164852]
 
 ---
 
-## Features
-
-### Image Processing Pipeline
-The system implements a custom convolution engine (using `numpy`) to apply the following five filters in sequence:
-
-1.  **Grayscale Conversion:** Converts RGB images to luminance grayscale.
-2.  **Gaussian Blur:** Applies a $3\times3$ Gaussian kernel for smoothing.
-3.  **Edge Detection:** Uses Sobel filters (Gx and Gy) to detect vertical and horizontal edges.
-4.  **Image Sharpening:** Enhances details using a sharpening kernel.
-5.  **Brightness Adjustment:** Increases brightness and clips values.
-
-### Parallel Paradigms Implemented
-As per the assignment requirements (Option 2: Python), the pipeline is implemented using three distinct execution modes:
-
-1.  **Sequential (Baseline):** Single-threaded execution for performance comparison.
-2.  **Multiprocessing (`multiprocessing` module):** Uses a pool of worker processes to bypass the Global Interpreter Lock (GIL), ideal for CPU-bound tasks.
-3.  **Concurrent Futures (`concurrent.futures`):**
-    * **ProcessPoolExecutor:** High-level interface for process-based parallelism.
-    * **ThreadPoolExecutor:** Thread-based parallelism (primarily for analyzing GIL limitations in CPU-bound tasks).
+## 🚀 Features
+* **5-Stage Filter Pipeline:** Simulates real-world CPU-bound image manipulation.
+* **Multi-Core Utilization:** Leverages all available CPU cores to speed up processing.
+* **Performance Analysis:** Automatically generates charts comparing Execution Time, Speedup, and Efficiency.
+* **GCP Ready:** Designed to run seamlessly on Google Cloud Platform Compute Engine instances.
 
 ---
 
-## Project Structure
+## 🛠️ Prerequisites
 
-```text
-CST435-Assignment2/
-├── data/
-│   └── food-101/           # Dataset directory (images stored here)
-├── output/                 # Generated results (charts, processed images)
-├── filters.py              # Core image processing logic (convolution kernels)
-├── main.py                 # Main entry point, benchmarking, and charting
-├── run_seq.py              # Sequential implementation wrapper
-├── run_mp.py               # Multiprocessing implementation wrapper
-├── run_fut.py              # Concurrent.futures wrapper (Thread & Process)
-└── README.md               # Project documentation
+* **Python 3.8+**
+* **Pip** (Python Package Manager)
+
+### Required Libraries
+The project relies on the following Python packages:
+* `numpy` (Matrix operations)
+* `matplotlib` (Graph plotting)
+* `Pillow` (Image loading/saving)
+* `tqdm` (Progress bars)
+* `colorama` (Console output coloring)
+* `psutil` (System resource monitoring)
+
+---
+
+## 📥 Installation & Setup
+
+1.  **Clone the Repository**
+    ```bash
+    git clone [https://github.com/YOUR_USERNAME/cst435-assignment2.git](https://github.com/YOUR_USERNAME/cst435-assignment2.git)
+    cd cst435-assignment2
+    ```
+
+2.  **Install Dependencies**
+    You can install all required libraries using the following command:
+    ```bash
+    pip install numpy matplotlib tqdm colorama Pillow psutil
+    ```
+
+3.  **Prepare the Dataset**
+    The script expects a specific directory structure for the input images.
+    1.  Create a folder named `data` and a subfolder `food-101` in the project root.
+    2.  Place your `.jpg` images inside `data/food-101`.
+
+    **Directory Structure:**
+    ```text
+    /project-root
+      ├── main.py
+      ├── filters.py
+      ├── run_seq.py
+      ├── run_mp.py
+      ├── run_fut.py
+      └── data/
+          └── food-101/
+              ├── image1.jpg
+              ├── image2.jpg
+              └── ...
+    ```
 
 ---
 
-## Installation & Setup
+## 💻 Usage
 
-### 1. Prerequisites
-* Python 3.8+
-* Recommended: A virtual environment (`venv` or `conda`)
-
-### 2. Install Dependencies
-Install the required Python libraries used in the source code:
-
-```bash
-pip install numpy matplotlib tqdm colorama Pillow psutil
-
-## 3. Dataset Setup
-
-This project uses the **Food-101** dataset.
-
-### Steps
-
-1. Download the dataset from Kaggle: *Food-101 Dataset*  
-2. Extract the contents.  
-3. Ensure the images are located at:
-
-```text
-data/food-101/images
-
-## Usage
-
-Run the main script to start the benchmark. The script will automatically detect the CPU core count and run tests using:
-
-- Sequential  
-- Multiprocessing  
-- Concurrent Futures  
-
----
+To run the full benchmark suite, simply execute `main.py`. The script will automatically detect the number of CPU cores and run tests for Sequential, Multiprocessing, and Concurrent Futures implementations.
 
 ### Basic Run
-
-Runs the benchmark on a random subset of 100 images (default):
-
 ```bash
 python main.py
 
-Custom Image Count
 
-To test scalability with a larger dataset (e.g., 500 images):
-
-python main.py --images 500
-
-Performance Analysis
-
-The main.py script automatically generates a performance report upon completion.
-
-Metrics Calculated
-
-Execution Time
-Total time taken to process the batch.
-
-Speedup
-
-𝑆
-𝑝
-𝑒
-𝑒
-𝑑
-𝑢
-𝑝
-=
-𝑇
-𝑖
-𝑚
-𝑒
-𝑠
-𝑒
-𝑞
-𝑢
-𝑒
-𝑛
-𝑡
-𝑖
-𝑎
-𝑙
-𝑇
-𝑖
-𝑚
-𝑒
-𝑝
-𝑎
-𝑟
-𝑎
-𝑙
-𝑙
-𝑒
-𝑙
-Speedup=
-Time
-parallel
-	​
-
-Time
-sequential
-	​
-
-	​
-
-
-Efficiency
-
-𝐸
-𝑓
-𝑓
-𝑖
-𝑐
-𝑖
-𝑒
-𝑛
-𝑐
-𝑦
-=
-𝑆
-𝑝
-𝑒
-𝑒
-𝑑
-𝑢
-𝑝
-𝑁
-𝑢
-𝑚
-𝑏
-𝑒
-𝑟
-_
-𝑜
-𝑓
-_
-𝑊
-𝑜
-𝑟
-𝑘
-𝑒
-𝑟
-𝑠
-×
-100
-%
-Efficiency=
-Number_of_Workers
-Speedup
-	​
-
-×100%
-Generated Outputs
-
-After execution, check the output/ directory for:
-
-benchmark_results.csv – Raw timing data
-
-analysis_execution_time.png – Line chart comparing execution speeds
-
-analysis_speedup.png – Graph showing scalability vs. ideal linear speedup
-
-analysis_efficiency.png – Bar chart showing resource utilization
-
-Processed Images – Subfolders containing the output images from the pipeline
-
-Observations & Theory
-Multiprocessing vs. Threading
-
-In Python, image processing is a CPU-bound task. Due to the Global Interpreter Lock (GIL), standard threading (ThreadPoolExecutor) often provides poor speedup compared to multiprocessing (ProcessPoolExecutor or multiprocessing.Pool), which uses separate memory spaces for each worker.
-
-Amdahl’s Law
-
-The maximum theoretical speedup is limited by the serial portion of the program (e.g., disk I/O when reading/writing images and process startup overhead). The generated logs attempt to estimate the observed parallel portion of the task.
-
-Acknowledgments
-
-Universiti Sains Malaysia (USM)
-
-Food-101 Dataset creators
+Run with a Specific Number of ImagesIf you want to test with a smaller subset of images (e.g., for quick debugging), use the --images flag:Bashpython main.py --images 50
+Default is 1000 images.OutputAfter execution, the program creates an output/ directory containing:Processed Images: A sample of images to verify the filters worked.benchmark_results.csv: Raw data of the run.Analysis Charts:analysis_execution_time.pnganalysis_speedup.pnganalysis_efficiency.png📂 Project Structuremain.py: The entry point. Handles argument parsing, dataset loading, orchestration of the benchmark runs, and graph generation.filters.py: Contains the core image processing logic (Grayscale, Blur, Sobel, etc.) using NumPy and PIL.run_seq.py: Implementation of the Sequential (single-threaded) runner.run_mp.py: Implementation using the multiprocessing module (bypasses GIL).run_fut.py: Implementation using concurrent.futures (Benchmarks both ProcessPool and ThreadPool).📊 Implementation DetailsImage Processing Pipeline (filters.py)Each image undergoes the following transformation chain:Grayscale: Weighted conversion ($0.299R + 0.587G + 0.114B$).Gaussian Blur: Convolution with a $3 \times 3$ kernel.Sobel Edge Detection: Gradient calculation in X and Y directions.Sharpening: Kernel-based edge enhancement.Brightness: Pixel intensity scaling and clipping.Parallel ParadigmsMultiprocessing (run_mp.py): Uses multiprocessing.Pool with imap. This spawns separate memory spaces for each worker, effectively bypassing the Global Interpreter Lock (GIL) to achieve true parallelism on multi-core CPUs.ProcessPoolExecutor (run_fut.py): High-level abstraction for multiprocessing.ThreadPoolExecutor (run_fut.py): Included for comparison. Demonstrates the limitations of Python threads for CPU-bound tasks due to the GIL.📝 AcknowledgmentsDataset: Food-101 (Kaggle)Course: CST435 Parallel and Cloud Computing, USM.
