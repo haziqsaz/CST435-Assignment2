@@ -9,15 +9,12 @@ def worker_wrapper_mp(args):
     result = process_image_pipeline(data)
     
     # --- WINDOWS CORE ID CALCULATION ---
-    # Windows doesn't allow reading the live CPU core.
-    # We simulate it mathematically using the Process ID (PID).
     try:
         if hasattr(psutil.Process(), 'cpu_num'):
             core = psutil.Process().cpu_num()
         else:
             raise AttributeError
     except:
-        # Fallback: Map PID to a Core number (0-15)
         core = os.getpid() % multiprocessing.cpu_count()
     # -----------------------------------
 
