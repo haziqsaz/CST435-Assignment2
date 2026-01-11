@@ -9,10 +9,10 @@ To evaluate performance scalability, the pipeline is implemented using three dif
 3.  **Concurrent Futures** (using `ProcessPoolExecutor` and `ThreadPoolExecutor`)
 
 ## 👥 Group Members
-* **[MUHAMMAD HAZIQ BIN SAZALI]** - [163646]
-* **[MUHAMMAD ARFAN BIN ZUHAIME]** - [161508]
-* **[MUHAMMAD HAZIQ BIN MOHAMAD RODZALI]** - [161423]
-* **[TAI JIA HUI]** - [164852]
+* **MUHAMMAD HAZIQ BIN SAZALI** - 163646
+* **MUHAMMAD ARFAN BIN ZUHAIME** - 161508
+* **MUHAMMAD HAZIQ BIN MOHAMAD RODZALI** - 161423
+* **TAI JIA HUI** - 164852
 
 ---
 
@@ -84,6 +84,47 @@ To run the full benchmark suite, simply execute `main.py`. The script will autom
 ```bash
 python main.py
 
+### Run with a Specific Number of Images
+If you want to test with a smaller subset of images (e.g., for quick debugging), use the `--images` flag:
 
-Run with a Specific Number of ImagesIf you want to test with a smaller subset of images (e.g., for quick debugging), use the --images flag:Bashpython main.py --images 50
-Default is 1000 images.OutputAfter execution, the program creates an output/ directory containing:Processed Images: A sample of images to verify the filters worked.benchmark_results.csv: Raw data of the run.Analysis Charts:analysis_execution_time.pnganalysis_speedup.pnganalysis_efficiency.png📂 Project Structuremain.py: The entry point. Handles argument parsing, dataset loading, orchestration of the benchmark runs, and graph generation.filters.py: Contains the core image processing logic (Grayscale, Blur, Sobel, etc.) using NumPy and PIL.run_seq.py: Implementation of the Sequential (single-threaded) runner.run_mp.py: Implementation using the multiprocessing module (bypasses GIL).run_fut.py: Implementation using concurrent.futures (Benchmarks both ProcessPool and ThreadPool).📊 Implementation DetailsImage Processing Pipeline (filters.py)Each image undergoes the following transformation chain:Grayscale: Weighted conversion ($0.299R + 0.587G + 0.114B$).Gaussian Blur: Convolution with a $3 \times 3$ kernel.Sobel Edge Detection: Gradient calculation in X and Y directions.Sharpening: Kernel-based edge enhancement.Brightness: Pixel intensity scaling and clipping.Parallel ParadigmsMultiprocessing (run_mp.py): Uses multiprocessing.Pool with imap. This spawns separate memory spaces for each worker, effectively bypassing the Global Interpreter Lock (GIL) to achieve true parallelism on multi-core CPUs.ProcessPoolExecutor (run_fut.py): High-level abstraction for multiprocessing.ThreadPoolExecutor (run_fut.py): Included for comparison. Demonstrates the limitations of Python threads for CPU-bound tasks due to the GIL.📝 AcknowledgmentsDataset: Food-101 (Kaggle)Course: CST435 Parallel and Cloud Computing, USM.
+```bash
+python main.py --images 50
+
+Default is 1000 images.
+### Output
+After execution, the program creates an output/ directory containing:
+Processed Images: A sample of images to verify the filters worked.
+benchmark_results.csv: Raw data of the run.
+
+Analysis Charts:
+analysis_execution_time.
+pnganalysis_speedup.
+pnganalysis_efficiency.png
+
+---
+
+## 📂 Project Structure
+main.py: The entry point. Handles argument parsing, dataset loading, orchestration of the benchmark runs, and graph generation.
+filters.py: Contains the core image processing logic (Grayscale, Blur, Sobel, etc.) using NumPy and PIL.
+run_seq.py: Implementation of the Sequential (single-threaded)
+runner.run_mp.py: Implementation using the multiprocessing module (bypasses GIL).
+run_fut.py: Implementation using concurrent.futures (Benchmarks both ProcessPool and ThreadPool).
+
+### 📊 Implementation Details
+Image Processing Pipeline (filters.py)Each image undergoes the following transformation chain:
+Grayscale: Weighted conversion ($0.299R + 0.587G + 0.114B$).
+Gaussian Blur: Convolution with a $3 \times 3$ kernel.
+Sobel Edge Detection: Gradient calculation in X and Y directions.
+Sharpening: Kernel-based edge enhancement.
+Brightness: Pixel intensity scaling and clipping.
+
+### Parallel Paradigms
+Multiprocessing (run_mp.py): Uses multiprocessing.Pool with imap. This spawns separate memory spaces for each worker, effectively bypassing the Global Interpreter Lock (GIL) to achieve true parallelism on multi-core CPUs.
+ProcessPoolExecutor (run_fut.py): High-level abstraction for multiprocessing.
+ThreadPoolExecutor (run_fut.py): Included for comparison. Demonstrates the limitations of Python threads for CPU-bound tasks due to the GIL.
+
+---
+
+## 📝 AcknowledgmentsDataset:
+Food-101 (Kaggle)
+Course: CST435 Parallel and Cloud Computing, USM.
