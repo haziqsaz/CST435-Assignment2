@@ -123,7 +123,7 @@ def main():
     multiprocessing.freeze_support()
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('--images', type=int, default=1000, help='Number of images')
+    parser.add_argument('--images', type=int, default=100, help='Number of images')
     args = parser.parse_args()
 
     if not os.path.exists(INPUT_DIR):
@@ -300,3 +300,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
