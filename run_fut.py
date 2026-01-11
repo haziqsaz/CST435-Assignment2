@@ -17,7 +17,6 @@ def worker_wrapper_fut(args):
         else:
             raise AttributeError
     except:
-        # Fallback: Map Thread ID to a Core number
         core = threading.get_ident() % multiprocessing.cpu_count()
     # -----------------------------------
 
