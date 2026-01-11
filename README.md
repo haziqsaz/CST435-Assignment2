@@ -83,14 +83,17 @@ To run the full benchmark suite, simply execute `main.py`. The script will autom
 ### Basic Run
 ```bash
 python main.py
+```
 
 ### Run with a Specific Number of Images
 If you want to test with a smaller subset of images (e.g., for quick debugging), use the `--images` flag:
 
 ```bash
 python main.py --images 50
+```
 
 Default is 1000 images.
+
 ### Output
 After execution, the program creates an output/ directory containing:
 Processed Images: A sample of images to verify the filters worked.
