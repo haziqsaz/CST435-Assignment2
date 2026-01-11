@@ -4,7 +4,7 @@ import multiprocessing
 import sys
 import time
 import datetime
-import random # Added for randomness
+import random
 from tqdm import tqdm
 from colorama import init
 
@@ -20,8 +20,6 @@ except ImportError as e:
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Auto-detect folder name
 POSSIBLE_DIRS = ["data/food-101", "data/food-101-subset", "food-101"]
 INPUT_DIR = None
 
@@ -36,7 +34,17 @@ if INPUT_DIR is None:
 
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 RESULTS_CSV = os.path.join(OUTPUT_DIR, "benchmark_results.csv")
+
+# Amdahl's Parameter: Assumed Parallel Portion (95%)
+PARALLEL_PORTION_THEORETICAL = 0.95 
 # ---------------------
+
+def calculate_amdahl_speedup(workers, p):
+    """
+    Theoretical Speedup = 1 / ((1 - P) + (P / N))
+    """
+    if workers == 1: return 1.0
+    return 1 / ((1 - p) + (p / workers))
 
 def print_banner(text):
     print("=" * 70)
@@ -57,9 +65,9 @@ def save_csv(results):
         if not os.path.exists(OUTPUT_DIR):
             os.makedirs(OUTPUT_DIR)
         with open(RESULTS_CSV, "w") as f:
-            f.write("Paradigm,Workers,Time,Speedup,Efficiency\n")
+            f.write("Paradigm,Workers,Time,Actual_Speedup,Theoretical_Speedup,Efficiency\n")
             for r in results:
-                f.write(f"{r['mode']},{r['workers']},{r['time']:.4f},{r['speedup']:.2f},{r['efficiency']:.2f}\n")
+                f.write(f"{r['mode']},{r['workers']},{r['time']:.4f},{r['speedup']:.2f},{r['amdahl_speedup']:.2f},{r['efficiency']:.2f}\n")
     except Exception as e:
         print(f"Warning: Could not save CSV: {e}")
 
@@ -72,7 +80,6 @@ def main():
 
     if not os.path.exists(INPUT_DIR):
         print(f"Error: Data directory not found: {INPUT_DIR}")
-        print("Please check where your 'food-101' folder is located.")
         return
 
     import glob
@@ -82,10 +89,8 @@ def main():
         print(f"No images found in {INPUT_DIR}")
         return
 
-    # --- RANDOM SELECTION ADDED HERE ---
+    # Randomize images for fair benchmarking
     random.shuffle(all_images)
-    # -----------------------------------
-    
     subset_images = all_images[:args.images]
 
     print(f"images {len(subset_images)}")
@@ -116,7 +121,6 @@ def main():
     print("\nSummary")
     print("-------")
     print(f"Successful: {len(subset_images)}/{len(subset_images)}")
-    print(f"Failed: 0/{len(subset_images)}")
     print(f"Total time: {seq_time:.4f} seconds")
     print(f"Average time per image: {seq_time/len(subset_images):.4f} seconds")
     print(f"\nBaseline time: {seq_time:.4f} seconds\n")
@@ -135,14 +139,12 @@ def main():
     for p in [1, 2, 4]:
         print(f"\n>>> Testing with {p} processes...")
         print_section_header("Multiprocessing Pipeline")
-        print(f"Input directory: {INPUT_DIR}")
-        print(f"Output directory: {os.path.join(OUTPUT_DIR, f'multiprocessing_p{p}')}")
-        print(f"Images to process: {len(subset_images)}")
         print(f"Worker processes: {p}\n")
 
-        # Fixed Progress Bar String
-        bar_str = "Multiprocessing Pool (" + str(p) + " processes): {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}"
-        pbar = tqdm(total=len(subset_images), bar_format=bar_str, ncols=80)
+        # Escaped braces for f-string + tqdm compatibility
+        pbar = tqdm(total=len(subset_images), 
+                    bar_format=f"Multiprocessing Pool ({p} processes): {{percentage:3.0f}}%|{{bar}}| {{n_fmt}}/{{total_fmt}}",
+                    ncols=80)
         
         mp_time, workers_used = run_mp.run_multiprocessing_task(
             subset_images, OUTPUT_DIR, p, progress_callback(pbar, "Process")
@@ -150,20 +152,19 @@ def main():
         pbar.close()
 
         speedup = seq_time / mp_time
+        amdahl_s = calculate_amdahl_speedup(p, PARALLEL_PORTION_THEORETICAL)
         eff = (speedup / p) * 100
         
         print("\nSummary")
         print("-------")
-        print(f"Successful: {len(subset_images)}/{len(subset_images)}")
-        print(f"Failed: 0/{len(subset_images)}")
         print(f"Total time: {mp_time:.4f} seconds")
-        print(f"Average time per image: {mp_time/len(subset_images):.4f} seconds")
         print(f"Unique workers used: {workers_used}")
-        print(f"    Speedup: {speedup:.2f}x")
+        print(f"    Actual Speedup: {speedup:.2f}x")
+        print(f"    Theoretical Speedup (Amdahl P=0.95): {amdahl_s:.2f}x")
         print(f"    Efficiency: {eff:.2f}%")
         
-        mp_results.append({'p': p, 'time': mp_time, 'speedup': speedup, 'eff': eff})
-        results_data.append({'mode': 'MP', 'workers': p, 'time': mp_time, 'speedup': speedup, 'efficiency': eff})
+        mp_results.append({'p': p, 'time': mp_time, 'speedup': speedup, 'amdahl': amdahl_s, 'eff': eff})
+        results_data.append({'mode': 'MP', 'workers': p, 'time': mp_time, 'speedup': speedup, 'amdahl_speedup': amdahl_s, 'efficiency': eff})
 
     # STEP 3: FUTURES
     print("\n")
@@ -179,15 +180,12 @@ def main():
 
     for w in [1, 2, 4]:
         print(f"\n>>> Testing with {w} workers...")
-        print_section_header("Concurrent.Futures Pipeline (ProcessPoolExecutor)")
-        print(f"Input directory: {INPUT_DIR}")
-        print(f"Output directory: {os.path.join(OUTPUT_DIR, f'futures_w{w}')}")
-        print(f"Images to process: {len(subset_images)}")
+        print_section_header("Concurrent.Futures Pipeline")
         print(f"Max workers: {w}\n")
 
-        # Fixed Progress Bar String
-        bar_str = "Futures ProcessPool (" + str(w) + " workers): {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}"
-        pbar = tqdm(total=len(subset_images), bar_format=bar_str, ncols=80)
+        pbar = tqdm(total=len(subset_images), 
+                    bar_format=f"Futures ProcessPool ({w} workers): {{percentage:3.0f}}%|{{bar}}| {{n_fmt}}/{{total_fmt}}",
+                    ncols=80)
 
         fut_time = run_fut.run_futures_task(
             subset_images, OUTPUT_DIR, w, progress_callback_fut(pbar, "Future")
@@ -195,97 +193,67 @@ def main():
         pbar.close()
 
         speedup = seq_time / fut_time
+        amdahl_s = calculate_amdahl_speedup(w, PARALLEL_PORTION_THEORETICAL)
         eff = (speedup / w) * 100
         
         print("\nSummary")
         print("-------")
-        print(f"Successful: {len(subset_images)}/{len(subset_images)}")
-        print(f"Failed: 0/{len(subset_images)}")
         print(f"Total time: {fut_time:.4f} seconds")
-        print(f"Average time per image: {fut_time/len(subset_images):.4f} seconds")
-        print(f"Unique workers used: {w}") 
-        print(f"    Speedup: {speedup:.2f}x")
+        print(f"    Actual Speedup: {speedup:.2f}x")
+        print(f"    Theoretical Speedup (Amdahl P=0.95): {amdahl_s:.2f}x")
         print(f"    Efficiency: {eff:.2f}%")
         
-        fut_results.append({'w': w, 'time': fut_time, 'speedup': speedup, 'eff': eff})
-        results_data.append({'mode': 'Fut', 'workers': w, 'time': fut_time, 'speedup': speedup, 'efficiency': eff})
+        fut_results.append({'w': w, 'time': fut_time, 'speedup': speedup, 'amdahl': amdahl_s, 'eff': eff})
+        results_data.append({'mode': 'Fut', 'workers': w, 'time': fut_time, 'speedup': speedup, 'amdahl_speedup': amdahl_s, 'efficiency': eff})
 
     # FINAL REPORT
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    print("\n+" + "-"*63 + "+")
-    print(f"|{'BENCHMARK SUMMARY':^63}|")
-    print("+" + "-"*63 + "+")
-    print(f"|  Timestamp: {timestamp:<48}|")
-    print(f"|  Total images processed: {len(subset_images):<40}|")
-    print(f"|  Sequential baseline time: {seq_time:.4f} seconds{'':<22}|")
+    print("\n+" + "-"*78 + "+")
+    print(f"|{'BENCHMARK SUMMARY':^78}|")
+    print("+" + "-"*78 + "+")
+    print(f"|  Timestamp: {timestamp:<63}|")
+    print(f"|  Images: {len(subset_images):<66}|")
+    print(f"|  Seq Time: {seq_time:.4f}s {'':<61}|")
     
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
-    print(f"|{'MULTIPROCESSING RESULTS':^63}|")
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
-    print(f"|{'Processes':^15}|{'Time (s)':^15}|{'Speedup':^15}|{'Efficiency':^15}|")
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
+    # Table Header
+    print("+" + "-"*15 + "+" + "-"*10 + "+" + "-"*15 + "+" + "-"*18 + "+" + "-"*15 + "+")
+    print(f"|{'Mode':^15}|{'CPUs':^10}|{'Time (s)':^15}|{'Speedup (Actual)':^18}|{'Amdahl (Theory)':^15}|")
+    print("+" + "-"*15 + "+" + "-"*10 + "+" + "-"*15 + "+" + "-"*18 + "+" + "-"*15 + "+")
+    
+    # Rows
     for r in mp_results:
-        print(f"|{r['p']:^15}|{r['time']:^15.4f}|{r['speedup']:^14.2f}x|{r['eff']:^14.2f}%|")
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
-
-    print(f"|{'CONCURRENT.FUTURES RESULTS (ProcessPoolExecutor)':^63}|")
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
-    print(f"|{'Workers':^15}|{'Time (s)':^15}|{'Speedup':^15}|{'Efficiency':^15}|")
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
+        print(f"|{'MultiProc':^15}|{r['p']:^10}|{r['time']:^15.4f}|{r['speedup']:^18.2f}x|{r['amdahl']:^15.2f}x|")
+    print("+" + "-"*15 + "+" + "-"*10 + "+" + "-"*15 + "+" + "-"*18 + "+" + "-"*15 + "+")
+    
     for r in fut_results:
-        print(f"|{r['w']:^15}|{r['time']:^15.4f}|{r['speedup']:^14.2f}x|{r['eff']:^14.2f}%|")
-    print("+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+" + "-"*15 + "+")
+        print(f"|{'Futures':^15}|{r['w']:^10}|{r['time']:^15.4f}|{r['speedup']:^18.2f}x|{r['amdahl']:^15.2f}x|")
+    print("+" + "-"*15 + "+" + "-"*10 + "+" + "-"*15 + "+" + "-"*18 + "+" + "-"*15 + "+")
 
-    mp_1 = mp_results[0]['time']
-    fut_1 = fut_results[0]['time']
-    mp_diff = mp_1 - seq_time
-    mp_pct = (mp_diff / seq_time) * 100
-    fut_diff = fut_1 - seq_time
-    fut_pct = (fut_diff / seq_time) * 100
-    
-    print(f"|{'PARALLEL OVERHEAD (1 process vs sequential)':^63}|")
-    print("+" + "-"*63 + "+")
-    print(f"|  Multiprocessing:   {mp_diff:+.4f}s ({mp_pct:+.1f}%) {'':<30}|")
-    print(f"|  Futures:           {fut_diff:+.4f}s ({fut_pct:+.1f}%) {'':<30}|")
-    print("+" + "-"*63 + "+")
-    
     save_csv(results_data)
-    print(f"Results exported to: {RESULTS_CSV}")
-
+    
     print("\n")
-    print_banner("DEMO COMPLETE!")
-    print("")
-    print("="*60)
-    print("PID Observation & Core Allocation Analysis")
-    print("="*60)
-    print("")
-    print("MULTIPROCESSING (mp_version.py):")
-    print("-" * 40)
-    print("PID Observation:")
-    print("  - Each worker has a DIFFERENT Process ID (PID)")
-    print("  - This is because multiprocessing creates separate processes")
-    print("  - Each process has its own memory space and Python interpreter")
-    print("")
-    print("Core Allocation:")
-    print("  - Each process can run on different CPU cores simultaneously")
-    print("  - Bypasses Python's Global Interpreter Lock (GIL)")
-    print("  - Achieves TRUE parallel execution for CPU-bound tasks")
-    print("  - Ideal for computationally intensive operations like image processing")
-    print("")
-    print("CONCURRENT.FUTURES (futures_version.py):")
-    print("-" * 40)
-    print("PID Observation:")
-    print("  - Uses ProcessPoolExecutor (Standard for CPU-bound tasks)")
-    print("  - Workers have DIFFERENT PIDs (similar to Multiprocessing)")
-    print("  - Abstraction layer over multiprocessing")
-    print("")
-    print("Core Allocation:")
-    print("  - Threads/Processes run on available CPU cores")
-    print("  - Optimized for managing pool of workers automatically")
-    print("="*60)
-    print(f"\nResults exported to: {RESULTS_CSV}")
-    print(f"Processed images saved to: {OUTPUT_DIR}/")
-    print("\nNote: Output files preserved in output/ folder.")
+    print_banner("AMDAHL'S LAW ANALYSIS")
+    
+    # Calculate Observed Parallel Fraction (P) based on 4-core Multiprocessing result
+    # Formula derived from Amdahl's: P = (N / (N-1)) * (1 - 1/S)
+    best_run = next((r for r in mp_results if r['p'] == 4), None)
+    if best_run:
+        N = 4
+        S = best_run['speedup']
+        if S > 1:
+            P_observed = (N / (N - 1)) * (1 - (1 / S))
+            print(f"Based on your 4-core Multiprocessing run:")
+            print(f"  - Observed Speedup (S): {S:.2f}x")
+            print(f"  - Estimated Parallel Portion (P): {P_observed:.2f} ({P_observed*100:.1f}%)")
+            print(f"  - Serial Portion (1-P): {1-P_observed:.2f} ({(1-P_observed)*100:.1f}%)")
+            print(f"    (This represents I/O, process spawning, and other non-parallel overhead)")
+        else:
+            print("  - Speedup was < 1, indicating overhead outweighed parallel benefits (common with small image counts).")
+
+    print("\n" + "="*70)
+    print("DEMO COMPLETE!")
+    print("="*70)
+    print(f"Results exported to: {RESULTS_CSV}")
 
 if __name__ == "__main__":
     main()
